@@ -151,8 +151,7 @@ def string2vec(word2vec, user_input):
     # Tokenize input string
     # Accumulate word vectors for each token
     # Average the accumulated vectors
-    cleaned_text = clean_text(user_input)
-    tokens = get_tokens(cleaned_text)
+    tokens = get_tokens(user_input)
 
     if len(tokens) == 0:
         return np.zeros(300, dtype=float)
