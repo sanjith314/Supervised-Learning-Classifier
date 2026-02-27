@@ -169,7 +169,19 @@ def string2vec(word2vec, user_input):
 def instantiate_models():
     # Instantiate and return machine learning models
     nb = GaussianNB()
-    logistic = LogisticRegression(max_iter=1000)
+    try:
+        logistic = LogisticRegression(
+            random_state=18,
+            solver="lbfgs",
+            multi_class="multinomial",
+            max_iter=1000
+        )
+    except TypeError:
+        logistic = LogisticRegression(
+            random_state=18,
+            solver="lbfgs",
+            max_iter=1000
+        )
     return nb, logistic
 
 # Function: train_model_tfidf(model, tfidf_train, training_labels)
