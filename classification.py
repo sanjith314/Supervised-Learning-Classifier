@@ -194,10 +194,8 @@ def instantiate_models():
 # embeddings for the training documents.
 def train_model_tfidf(model, tfidf_train, training_labels):
     # Fit model to training data using TFIDF matrix
-    if isinstance(model, GaussianNB):
-        model.fit(tfidf_train.toarray(), training_labels)
-    else:
-        model.fit(tfidf_train, training_labels)
+    tfidf_train_dense = tfidf_train.toarray()
+    model.fit(tfidf_train_dense, training_labels)
     return model
 
 # Function: train_model_w2v(model, word2vec, training_documents, training_labels)
@@ -213,6 +211,7 @@ def train_model_w2v(model, word2vec, training_documents, training_labels):
     # Convert training documents to Word2Vec embeddings
     # Fit model to these embeddings
     train_embeddings = np.array([string2vec(word2vec, doc) for doc in tqdm(training_documents)])
+    train_embeddings = train_embeddings.reshape(len(training_documents), -1)
     model.fit(train_embeddings, training_labels)
     return model
 
