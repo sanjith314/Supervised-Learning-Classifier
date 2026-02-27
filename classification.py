@@ -227,10 +227,8 @@ def train_model_w2v(model, word2vec, training_documents, training_labels):
 def test_model_tfidf(model, vectorizer, test_documents):
     # Predict using the TFIDF model
     tfidf_test = vectorizer.transform(test_documents)
-    if isinstance(model, GaussianNB):
-        preds = model.predict(tfidf_test.toarray())
-    else:
-        preds = model.predict(tfidf_test)
+    tfidf_test_dense = tfidf_test.toarray()
+    preds = model.predict(tfidf_test_dense)
     return preds
 
 
@@ -246,6 +244,7 @@ def test_model_tfidf(model, vectorizer, test_documents):
 def test_model_w2v(model, word2vec, test_documents):
     # Predict using the Word2Vec model
     test_embeddings = np.array([string2vec(word2vec, doc) for doc in tqdm(test_documents)])
+    test_embeddings = test_embeddings.reshape(len(test_documents), -1)
     preds = model.predict(test_embeddings)
     return preds
 
@@ -255,9 +254,9 @@ def test_model_w2v(model, word2vec, test_documents):
 # preds: A list of predicted labels produced by the model
 # Returns: Returns precision, recall, F1 score, and accuracy metrics
 def evaluate_performance(test_labels, preds):
-    precision = precision_score(test_labels, preds, average="macro")
-    recall = recall_score(test_labels, preds, average="macro")
-    f1 = f1_score(test_labels, preds, average="macro")
+    precision = precision_score(test_labels, preds, average="weighted")
+    recall = recall_score(test_labels, preds, average="weighted")
+    f1 = f1_score(test_labels, preds, average="weighted")
     accuracy = accuracy_score(test_labels, preds)
     return precision, recall, f1, accuracy
 
