@@ -17,6 +17,8 @@ import numpy as np
 import pickle as pkl
 import nltk
 from nltk.tokenize import sent_tokenize
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 import time
 import csv
 from tqdm import tqdm
@@ -48,12 +50,16 @@ def load_w2v(filepath):
 # and returns a list of documents (movie summaries) and a list of categorical values (label).
 def load_as_list(fname):
     # Initialize variables for document and label lists
-    movie_summaries = None
-    labels = None
-    ids = None
+    movie_summaries = []
+    labels = []
+    ids = []
 
     # Read CSV file and extract 'summary' and 'genre' columns into lists
     # Return the lists
+    data = pd.read_csv(fname)
+    movie_summaries = data["summary"].fillna("").astype(str).tolist()
+    labels = data["genre"].astype(int).tolist()
+    ids = data["id"].tolist()
     return movie_summaries, labels, ids
 
 
@@ -66,7 +72,11 @@ def load_as_list(fname):
 # This is useful for tasks that require analysis at the sentence level.
 def get_sentences(text):
     # Use NLTK's sent_tokenize to split text into sentences
-    return None
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt', quiet=True)
+    return sent_tokenize(text)
 
 
 # Function to convert a given string into a list of tokens
@@ -76,7 +86,11 @@ def get_sentences(text):
 def get_tokens(inp_str):
     # Check for existence of tokenizer, download if not found
     # Tokenize input string and return list of tokens
-    return None
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt', quiet=True)
+    return word_tokenize(inp_str)
 
 # Function: clean_text(text)
 # text: A string containing the text to be processed
@@ -87,8 +101,17 @@ def get_tokens(inp_str):
 def clean_text(text):
     # Convert text to lowercase
     # Filter out stopwords using NLTK's English stopwords list
-    sentences = sent_tokenize(text)
-    return sentences
+    lowered_text = text.lower()
+    tokens = get_tokens(lowered_text)
+
+    try:
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        nltk.download('stopwords', quiet=True)
+
+    stop_words = set(stopwords.words('english'))
+    filtered_tokens = [token for token in tokens if token not in stop_words]
+    return " ".join(filtered_tokens)
 
 
 # Function: vectorize_train.  See project statement for more details.
@@ -97,7 +120,9 @@ def clean_text(text):
 def vectorize_train(training_documents):
     # Initialize TfidfVectorizer with a tokenizer
     # Fit model to training documents and create document-term matrix
-    return None, None
+    vectorizer = TfidfVectorizer(tokenizer=get_tokens, lowercase=True)
+    tfidf_train = vectorizer.fit_transform(training_documents)
+    return vectorizer, tfidf_train
 
 # Function: w2v(word2vec, token)
 # word2vec: The pretrained Word2Vec representations as dictionary
@@ -111,7 +136,8 @@ def vectorize_train(training_documents):
 def w2v(word2vec, token):
     # Initialize a zero vector
     # Check if token exists in word2vec dictionary and get corresponding vector
-    return None
+    zero_vector = np.zeros(300, dtype=float)
+    return word2vec.get(token, zero_vector)
 
 # Function: string2vec(word2vec, user_input)
 # word2vec: The pretrained Word2Vec model
@@ -125,7 +151,14 @@ def string2vec(word2vec, user_input):
     # Tokenize input string
     # Accumulate word vectors for each token
     # Average the accumulated vectors
-    return None
+    cleaned_text = clean_text(user_input)
+    tokens = get_tokens(cleaned_text)
+
+    if len(tokens) == 0:
+        return np.zeros(300, dtype=float)
+
+    vectors = [w2v(word2vec, token) for token in tokens]
+    return np.mean(vectors, axis=0)
 
 # Function: instantiate_models()
 # This function does not take any input
@@ -136,7 +169,9 @@ def string2vec(word2vec, user_input):
 # in this function.
 def instantiate_models():
     # Instantiate and return machine learning models
-    return None, None
+    nb = GaussianNB()
+    logistic = LogisticRegression(max_iter=1000)
+    return nb, logistic
 
 # Function: train_model_tfidf(model, tfidf_train, training_labels)
 # model: An instantiated machine learning model
@@ -148,7 +183,11 @@ def instantiate_models():
 # embeddings for the training documents.
 def train_model_tfidf(model, tfidf_train, training_labels):
     # Fit model to training data using TFIDF matrix
-    return None
+    if isinstance(model, GaussianNB):
+        model.fit(tfidf_train.toarray(), training_labels)
+    else:
+        model.fit(tfidf_train, training_labels)
+    return model
 
 # Function: train_model_w2v(model, word2vec, training_documents, training_labels)
 # model: An instantiated machine learning model
@@ -162,7 +201,9 @@ def train_model_tfidf(model, tfidf_train, training_labels):
 def train_model_w2v(model, word2vec, training_documents, training_labels):
     # Convert training documents to Word2Vec embeddings
     # Fit model to these embeddings
-    return None
+    train_embeddings = np.array([string2vec(word2vec, doc) for doc in tqdm(training_documents)])
+    model.fit(train_embeddings, training_labels)
+    return model
 
 # Function: test_model_tfidf(model, vectorizer, test_documents, test_labels)
 # model: An instantiated machine learning model
@@ -175,7 +216,11 @@ def train_model_w2v(model, word2vec, training_documents, training_labels):
 # that document.  
 def test_model_tfidf(model, vectorizer, test_documents):
     # Predict using the TFIDF model
-    preds = []
+    tfidf_test = vectorizer.transform(test_documents)
+    if isinstance(model, GaussianNB):
+        preds = model.predict(tfidf_test.toarray())
+    else:
+        preds = model.predict(tfidf_test)
     return preds
 
 
@@ -190,7 +235,8 @@ def test_model_tfidf(model, vectorizer, test_documents):
 # that document.  
 def test_model_w2v(model, word2vec, test_documents):
     # Predict using the Word2Vec model
-    preds = []
+    test_embeddings = np.array([string2vec(word2vec, doc) for doc in tqdm(test_documents)])
+    preds = model.predict(test_embeddings)
     return preds
 
 
@@ -199,10 +245,10 @@ def test_model_w2v(model, word2vec, test_documents):
 # preds: A list of predicted labels produced by the model
 # Returns: Returns precision, recall, F1 score, and accuracy metrics
 def evaluate_performance(test_labels, preds):
-    precision = None
-    recall = None
-    f1 = None
-    accuracy = None
+    precision = precision_score(test_labels, preds, average="macro")
+    recall = recall_score(test_labels, preds, average="macro")
+    f1 = f1_score(test_labels, preds, average="macro")
+    accuracy = accuracy_score(test_labels, preds)
     return precision, recall, f1, accuracy
 
 # Use this main function to test your code. Sample code is provided to assist with the assignment;
