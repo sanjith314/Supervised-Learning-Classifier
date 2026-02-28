@@ -34,6 +34,17 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 # If you store the file elsewhere, you will need to update the file path accordingly.
 EMBEDDING_FILE = "w2v.pkl"
 
+
+def _ensure_nltk_tokenizers():
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt', quiet=True)
+    try:
+        nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        nltk.download('punkt_tab', quiet=True)
+
 # Function: load_w2v
 # filepath: path of w2v.pkl
 # Returns: A dictionary containing words as keys and pre-trained word2vec representations as numpy arrays of shape (300,)
@@ -72,10 +83,7 @@ def load_as_list(fname):
 # This is useful for tasks that require analysis at the sentence level.
 def get_sentences(text):
     # Use NLTK's sent_tokenize to split text into sentences
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt', quiet=True)
+    _ensure_nltk_tokenizers()
     return sent_tokenize(text)
 
 
@@ -86,10 +94,7 @@ def get_sentences(text):
 def get_tokens(inp_str):
     # Check for existence of tokenizer, download if not found
     # Tokenize input string and return list of tokens
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt', quiet=True)
+    _ensure_nltk_tokenizers()
     return word_tokenize(inp_str)
 
 # Function: clean_text(text)
